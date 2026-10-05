@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+  <defs>
+    <!-- Filtro de fibra y grano de papel tipo lino / kraft reciclado -->
+    <filter id="paper-noise" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch" result="noise"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.12  0 0 0 0 0.10  0 0 0 0 0.08  0 0 0 0.065 0" />
+    </filter>
+
+    <!-- Ondulación del papel corrugado con luces y sombras suaves -->
+    <linearGradient id="ribs" x1="0" y1="0" x2="100%" y2="0">
+      <stop offset="0%" stop-color="#F4EFE6"/>
+      <stop offset="25%" stop-color="#FAF6EE"/>
+      <stop offset="50%" stop-color="#ECE5D8"/>
+      <stop offset="75%" stop-color="#F8F4EC"/>
+      <stop offset="100%" stop-color="#F4EFE6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Base acanalada suave -->
+  <rect width="180" height="180" fill="url(#ribs)"/>
+
+  <!-- Líneas sutiles de canalé corrugado (crestas y sombras) -->
+  <!-- Columna 1 -->
+  <line x1="45" y1="0" x2="45" y2="180" stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="2"/>
+  <line x1="47" y1="0" x2="47" y2="180" stroke="#7A6D5A" stroke-opacity="0.05" stroke-width="2"/>
+
+  <!-- Columna 2 -->
+  <line x1="90" y1="0" x2="90" y2="180" stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="2"/>
+  <line x1="92" y1="0" x2="92" y2="180" stroke="#7A6D5A" stroke-opacity="0.05" stroke-width="2"/>
+
+  <!-- Columna 3 -->
+  <line x1="135" y1="0" x2="135" y2="180" stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="2"/>
+  <line x1="137" y1="0" x2="137" y2="180" stroke="#7A6D5A" stroke-opacity="0.05" stroke-width="2"/>
+
+  <!-- Fibras orgánicas micro-dispersas -->
+  <path d="M12 25 Q18 35 25 40" stroke="#8A7B68" stroke-opacity="0.08" stroke-width="0.8" fill="none"/>
+  <path d="M85 70 Q95 72 105 78" stroke="#8A7B68" stroke-opacity="0.07" stroke-width="0.7" fill="none"/>
+  <path d="M140 130 Q150 142 165 145" stroke="#8A7B68" stroke-opacity="0.08" stroke-width="0.8" fill="none"/>
+  <path d="M50 115 Q60 120 70 118" stroke="#8A7B68" stroke-opacity="0.06" stroke-width="0.7" fill="none"/>
+
+  <!-- Capa de textura granular de papel -->
+  <rect width="180" height="180" filter="url(#paper-noise)"/>
+</svg>

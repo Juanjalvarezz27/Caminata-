@@ -1,0 +1,23 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Participant {
+  id                String   @id @default(uuid())
+  dorsal            String   @unique
+  nombre            String
+  cedula            String   @unique
+  telefono          String
+  genero            String
+  terminosAceptados Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([genero])
+}
