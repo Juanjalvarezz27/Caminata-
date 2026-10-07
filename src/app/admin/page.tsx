@@ -2,7 +2,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import LogoutButton from "@/components/LogoutButton";
+import AdminSearchInput from "@/components/AdminSearchInput";
 import { ADMIN_SESSION_COOKIE, isValidAdminSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -25,17 +27,32 @@ export default async function AdminDashboardPage({ searchParams }: AdminPageProp
   const parsedPage = parseInt(pageParam, 10);
   const requestedPage = isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
   const pageSize = 15;
-  const skip = (requestedPage - 1) * pageSize;
 
-  // Ejecuta en paralelo métricas agregadas y registros paginados con proyección exacta de campos
-  const [genderGroups, participants] = await Promise.all([
+  // Filtro de búsqueda por nombre, cédula o número de dorsal
+  const searchQuery = typeof resolvedSearchParams.q === "string" ? resolvedSearchParams.q.trim() : "";
+  const whereFilter: Prisma.ParticipantWhereInput = searchQuery
+    ? {
+        OR: [
+          { nombre: { contains: searchQuery, mode: "insensitive" } },
+          { cedula: { contains: searchQuery, mode: "insensitive" } },
+          { dorsal: { contains: searchQuery, mode: "insensitive" } },
+        ],
+      }
+    : {};
+
+  // Ejecuta en paralelo métricas globales, conteo filtrado y registros paginados
+  const [genderGroups, filteredCount, participants] = await Promise.all([
     prisma.participant.groupBy({
       by: ["genero"],
       _count: { _all: true },
     }),
+    prisma.participant.count({
+      where: whereFilter,
+    }),
     prisma.participant.findMany({
+      where: whereFilter,
       orderBy: { createdAt: "desc" },
-      skip,
+      skip: (requestedPage - 1) * pageSize,
       take: pageSize,
       select: {
         id: true,
@@ -60,8 +77,18 @@ export default async function AdminDashboardPage({ searchParams }: AdminPageProp
     totalParticipants += group._count._all;
   }
 
-  const totalPages = Math.max(1, Math.ceil(totalParticipants / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
   const currentPage = Math.min(requestedPage, totalPages);
+
+  // Helper para generar URLs de paginación preservando el filtro de búsqueda
+  const buildPageUrl = (pageNumber: number) => {
+    const params = new URLSearchParams();
+    params.set("page", pageNumber.toString());
+    if (searchQuery) {
+      params.set("q", searchQuery);
+    }
+    return `/admin?${params.toString()}`;
+  };
 
   return (
     <main className="min-h-screen bg-transparent text-[#0F0F11] pb-16 selection:bg-[#E31B23] selection:text-white">
@@ -158,30 +185,55 @@ export default async function AdminDashboardPage({ searchParams }: AdminPageProp
 
         {/* Tabla de Participantes */}
         <section className="bg-white rounded-3xl border border-[#E5E0D8] shadow-xs overflow-hidden">
-          <div className="px-7 py-5 border-b border-[#EFECE6] flex flex-wrap items-center justify-between gap-4">
+          <div className="px-7 py-5 border-b border-[#EFECE6] flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-black font-headline text-[#0F0F11] uppercase tracking-tight flex items-center gap-2.5">
-                <span>Participantes Registrados</span>
+                <span>{searchQuery ? "Resultados de Búsqueda" : "Participantes Registrados"}</span>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#E31B23] text-white">
-                  {totalParticipants}
+                  {searchQuery ? filteredCount : totalParticipants}
                 </span>
               </h2>
               <p className="text-xs text-[#5C5C64] mt-0.5 font-medium">
-                Lista oficial sincronizada en tiempo real con PostgreSQL • 15 por página
+                {searchQuery
+                  ? `Mostrando coincidencias para "${searchQuery}" • 15 por página`
+                  : "Lista oficial sincronizada en tiempo real con PostgreSQL • 15 por página"}
               </p>
             </div>
+
+            {/* Buscador de participantes por nombre, cédula o dorsal */}
+            <AdminSearchInput initialQuery={searchQuery} key={searchQuery} />
           </div>
 
           {participants.length === 0 ? (
             /* Estado vacío compartido */
             <div className="px-7 py-16 text-center text-[#8E8E96]">
               <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#FAF8F5] border border-[#E5E0D8] flex items-center justify-center text-[#8E8E96]">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-                </svg>
+                {searchQuery ? (
+                  <svg className="w-6 h-6 text-[#8E8E96]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                  </svg>
+                )}
               </div>
-              <p className="text-base font-bold text-[#0F0F11]">No hay participantes registrados todavía</p>
-              <p className="text-xs text-[#5C5C64] mt-1">Los nuevos registros completados en la página aparecerán aquí de forma inmediata.</p>
+              <p className="text-base font-bold text-[#0F0F11]">
+                {searchQuery ? "No se encontraron resultados" : "No hay participantes registrados todavía"}
+              </p>
+              <p className="text-xs text-[#5C5C64] mt-1 max-w-sm mx-auto">
+                {searchQuery
+                  ? `No se hallaron registros que coincidan con "${searchQuery}". Verifica el nombre, cédula o número de dorsal.`
+                  : "Los nuevos registros completados en la página aparecerán aquí de forma inmediata."}
+              </p>
+              {searchQuery && (
+                <Link
+                  href="/admin"
+                  className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#0F0F11] bg-white hover:bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl transition-all shadow-xs"
+                >
+                  <span>Ver todos los inscritos</span>
+                </Link>
+              )}
             </div>
           ) : (
             <>
@@ -331,13 +383,13 @@ export default async function AdminDashboardPage({ searchParams }: AdminPageProp
                     </span>{" "}
                     al{" "}
                     <span className="font-extrabold text-[#0F0F11]">
-                      {Math.min(currentPage * pageSize, totalParticipants)}
+                      {Math.min(currentPage * pageSize, filteredCount)}
                     </span>{" "}
                     de{" "}
                     <span className="font-extrabold text-[#0F0F11]">
-                      {totalParticipants}
+                      {filteredCount}
                     </span>{" "}
-                    inscritos
+                    {searchQuery ? "resultados" : "inscritos"}
                   </p>
 
                   {/* Controles de navegación de página */}
@@ -345,7 +397,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminPageProp
                     {/* Botón Anterior */}
                     {currentPage > 1 ? (
                       <Link
-                        href={`/admin?page=${currentPage - 1}`}
+                        href={buildPageUrl(currentPage - 1)}
                         className="px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-[#0F0F11] bg-white hover:bg-[#FAF8F5] border border-[#E5E0D8] hover:border-[#D5CFBE] rounded-xl transition-all shadow-xs flex items-center gap-1"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -387,7 +439,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminPageProp
                                 </span>
                               )}
                               <Link
-                                href={`/admin?page=${p}`}
+                                href={buildPageUrl(p)}
                                 className={`w-8 h-8 rounded-xl text-xs font-bold flex items-center justify-center transition-all ${
                                   p === currentPage
                                     ? "bg-[#E31B23] text-white shadow-xs font-black"
@@ -409,7 +461,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminPageProp
                     {/* Botón Siguiente */}
                     {currentPage < totalPages ? (
                       <Link
-                        href={`/admin?page=${currentPage + 1}`}
+                        href={buildPageUrl(currentPage + 1)}
                         className="px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-[#0F0F11] bg-white hover:bg-[#FAF8F5] border border-[#E5E0D8] hover:border-[#D5CFBE] rounded-xl transition-all shadow-xs flex items-center gap-1"
                       >
                         <span>Siguiente</span>
