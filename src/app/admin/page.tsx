@@ -196,7 +196,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminPageProp
               <p className="text-xs text-[#5C5C64] mt-0.5 font-medium">
                 {searchQuery
                   ? `Mostrando coincidencias para "${searchQuery}" • 15 por página`
-                  : "Lista oficial sincronizada en tiempo real con PostgreSQL • 15 por página"}
+                  : "15 participantes por página"}
               </p>
             </div>
 
