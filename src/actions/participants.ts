@@ -1,7 +1,10 @@
 "use server";
 
+import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { ADMIN_SESSION_COOKIE, isValidAdminSession } from "@/lib/auth";
 
 export interface RegisterState {
   success?: boolean;
@@ -46,6 +49,18 @@ export async function registerParticipant(
   }
 
   try {
+    // Comprueba existencia previa para no quemar correlativos de la secuencia en fallos
+    const existingParticipant = await prisma.participant.findUnique({
+      where: { cedula },
+      select: { id: true },
+    });
+
+    if (existingParticipant) {
+      return {
+        error: "Esta cédula de identidad ya se encuentra registrada en el evento.",
+      };
+    }
+
     // Genera el número de dorsal atómico de 4 dígitos directamente en PostgreSQL
     const dorsalResult = await prisma.$queryRaw<[{ dorsal: string }]>`
       SELECT lpad(nextval('participant_dorsal_seq')::text, 4, '0') AS dorsal;
@@ -120,6 +135,42 @@ export async function registerParticipant(
 
     return {
       error: "Ocurrió un error inesperado al procesar tu registro. Intenta nuevamente.",
+    };
+  }
+}
+
+// Actualiza el estado de entrega del dorsal de un participante
+export async function toggleDorsalEntrega(
+  participantId: string,
+  entregado: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+
+    if (!isValidAdminSession(sessionToken)) {
+      return { success: false, error: "No autorizado para realizar esta acción." };
+    }
+
+    if (!participantId || typeof participantId !== "string") {
+      return { success: false, error: "Identificador de participante no válido." };
+    }
+
+    await prisma.participant.update({
+      where: { id: participantId },
+      data: {
+        dorsalEntregado: entregado,
+        fechaEntrega: entregado ? new Date() : null,
+      },
+    });
+
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (error) {
+    console.error("Error al actualizar estado del dorsal:", error);
+    return {
+      success: false,
+      error: "Ocurrió un error al actualizar el estado de entrega del dorsal.",
     };
   }
 }

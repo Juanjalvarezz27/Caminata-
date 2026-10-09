@@ -15,9 +15,12 @@ model Participant {
   cedula            String   @unique
   telefono          String
   genero            String
-  terminosAceptados Boolean  @default(false)
-  createdAt         DateTime @default(now())
+  terminosAceptados Boolean   @default(false)
+  dorsalEntregado   Boolean   @default(false)
+  fechaEntrega      DateTime?
+  createdAt         DateTime  @default(now())
 
   @@index([createdAt(sort: Desc)])
   @@index([genero])
+  @@index([dorsalEntregado])
 }
