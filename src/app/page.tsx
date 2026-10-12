@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import RegisterForm from "@/components/RegisterForm";
+import ClosedRegistrations from "@/components/ClosedRegistrations";
 
 export default function HomePage() {
   return (
@@ -75,6 +75,7 @@ export default function HomePage() {
                 src="/hero-runner-transparent.png"
                 alt="Caminata 10K por el Día Mundial del Corazón"
                 fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 384px, 448px"
                 priority
                 className="object-contain"
               />
@@ -104,9 +105,9 @@ export default function HomePage() {
 
           </section>
 
-          {/* Columna Derecha: Formulario de Registro */}
+          {/* Columna Derecha: Aviso de Inscripciones Cerradas */}
           <section className="lg:col-span-5 flex justify-center w-full sticky lg:top-24">
-            <RegisterForm />
+            <ClosedRegistrations />
           </section>
 
         </div>

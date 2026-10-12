@@ -13,10 +13,20 @@ export interface RegisterState {
   error?: string;
 }
 
+// Bandera para habilitar o deshabilitar inscripciones
+const REGISTRATIONS_OPEN = false;
+
 export async function registerParticipant(
   _prevState: RegisterState | null,
   formData: FormData
 ): Promise<RegisterState> {
+  // Comprobación de estado activo del evento
+  if (!REGISTRATIONS_OPEN) {
+    return {
+      error: "Las inscripciones para la Caminata 10K se encuentran oficialmente cerradas.",
+    };
+  }
+
   const nombre = formData.get("nombre")?.toString().trim();
   // Normaliza cédula a mayúsculas y sin espacios para evitar duplicados por formato
   const cedula = formData.get("cedula")?.toString().trim().toUpperCase().replace(/\s+/g, "");
